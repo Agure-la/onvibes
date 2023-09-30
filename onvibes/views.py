@@ -1,175 +1,210 @@
+from django.shortcuts import get_object_or_404
 from django.views.generic import CreateView, UpdateView, ListView, DeleteView, DetailView
 from .models import Artist, Genre, Song, Like, Comment
 from .forms import ArtistForm, GenreForm, SongForm, LikeForm, CommentForm
+from rest_framework import generics, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .serializer import SongSerializer, ArtistSerializer, CommentSerializer, LikeSerializer, GenreSerializer
+from rest_framework.exceptions import NotFound
 
 
 # Create your views here.
 
 # Artist class Operations
 
-class ArtistDetailView(DetailView):
-    model = Artist
-    template_name = 'artist_detail.html'
-    context_object_name = 'artist'
+class ArtistViewSet(viewsets.ModelViewSet):
+    queryset = Artist.objects.all()
+    serializer_class = ArtistSerializer
+    lookup_field = 'artist_id'  # specify the primary key
 
+    @action(detail=True, methods=['GET'])
+    def retrieve_artist(self, request, artist_id=None):
+        artist = get_object_or_404(Artist, artist_id=artist_id)
+        serializer = self.get_serializer(artist)
+        return Response(serializer.data)
 
-class ArtistCreateView(CreateView):
-    model = Artist
-    form_class = ArtistForm
-    template_name = 'artist_form.html'
-    success_url = 'artist-list'
+    @action(detail=False, methods=['POST'])
+    def create_artist(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.data, status=400)
 
+    @action(detail=True, methods=['PUT', 'PATCH'])
+    def update_artist(self, request, artist_id=None):
+        artist = get_object_or_404(Artist, artist_id=artist_id)
+        serializer = self.get_serializer(artist, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
 
-class ArtistUpdateView(UpdateView):
-    model = Artist
-    form_class = ArtistForm
-    template_name = 'artist_form.html'
-    success_url = 'artist-list'
-
-
-class ArtistListView(ListView):
-    model = Artist
-    template_name = 'artist_list.html'
-    context_object_name = 'artists'
-
-
-class ArtistDeleteView(DeleteView):
-    model = Artist
-    template_name = 'artist_confirm_delete.html'
-    success_url = 'artist_list'
+    @action(detail=True, methods=['DELETE'])
+    def delete_artist(self, request, artist_id=None):
+        artist = get_object_or_404(Artist, artist_id=artist_id)
+        artist.delete()
+        return Response(status=204)
 
 
 # genre class Operations
 
-class GenreDetailView(DetailView):
-    model = Genre
-    template_name = 'genre_detail.html'
-    context_object_name = 'genre'
+class GenreViewSet(viewsets.ModelViewSet):
+    queryset = Genre.objects.all()
+    serializer_class = GenreSerializer
+    lookup_field = 'genre_id'  # specify the primary key
 
+    @action(detail=True, methods=['GET'])
+    def retrieve_genre(self, request, genre_id=None):
+        genre = get_object_or_404(Genre, genre_id=genre_id)
+        serializer = self.get_serializer(genre)
+        return Response(serializer.data)
 
-class GenreCreateView(CreateView):
-    model = Genre
-    form_class = GenreForm
-    template_name = 'genre_form.html'
-    success_url = 'genre_list'  # Redirect to the genre list view
+    @action(detail=False, methods=['POST'])
+    def create_genre(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.data, status=400)
 
+    @action(detail=True, methods=['PUT', 'PATCH'])
+    def update_genre(self, request, genre_id=None):
+        genre = get_object_or_404(Genre, genre_id=genre_id)
+        serializer = self.get_serializer(genre, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
 
-class GenreUpdateView(UpdateView):
-    model = Genre
-    form_class = GenreForm
-    template_name = 'genre_form.html'
-    success_url = 'genre_list'  # Redirect to the genre list view
-
-
-class GenreListView(ListView):
-    model = Genre
-    template_name = 'genre_list.html'
-    context_object_name = 'genres'  # Optional: You can customize the context variable name
-
-
-class GenreDeleteView(DeleteView):
-    model = Genre
-    template_name = 'genre_confirm_delete.html'
-    success_url = 'genre_list'
+    @action(detail=True, methods=['DELETE'])
+    def delete_genre(self, request, genre_id=None):
+        genre = get_object_or_404(Genre, genre_id=genre_id)
+        genre.delete()
+        return Response(status=204)
 
 
 # Song Class Operations
 
-class SongDetailView(DetailView):
-    model = Song
-    template_name = 'song_detail.html'
-    context_object_name = 'song'
+class SongViewSet(viewsets.ModelViewSet):
+    queryset = Song.objects.all()
+    serializer_class = SongSerializer
 
 
-class SongCreateView(CreateView):
-    model = Song
-    form_class = SongForm
-    template_name = 'song_form.html'
-    success_url = 'song_list'  # Redirect to the song list view
+class SongRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Song.objects.all()
+    serializer_class = SongSerializer
 
+    @action(detail=False, methods=['GET'])
+    def list_songs(self, request):
+        songs = self.get_queryset()
+        serializer = self.get_serializer(songs, many=True)
+        return Response(serializer.data)
 
-class SongUpdateView(UpdateView):
-    model = Song
-    form_class = SongForm
-    template_name = 'song_form.html'
-    success_url = 'song_list'  # Redirect to the song list view
+    @action(detail=True, methods=['GET'])
+    def retrieve_song(self, request, song_id=None):
+        try:
+            song = self.get_object()
+        except Song.DoesNotExist:
+            raise NotFound("Song Not Found")
 
+        serializer = self.get_serializer(song)
+        return Response(serializer.data)
 
-class SongListView(ListView):
-    model = Song
-    template_name = 'song_list.html'
-    context_object_name = 'songs'  # Optional: You can customize the context variable name
+    @action(detail=False, methods=['POST'])
+    def create_song(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.data, status=400)
 
+    @action(detail=True, methods=['PUT', 'PATCH'])
+    def update_song(self, request, song_id=None):
+        song = self.get_object()
+        serializer = self.get_serializer(song, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
 
-class SongDeleteView(DeleteView):
-    model = Song
-    template_name = 'song_confirm_delete.html'
-    success_url = 'song_list'
+    @action(detail=True, methods=['DELETE'])
+    def delete_song(self, request, song_id=None):
+        song = self.get_object()
+        song.delete()
+        return Response(status=204)
 
 
 # Comment Operations
 
-class CommentDetailView(DetailView):
-    model = Comment
-    template_name = 'comment_detail.html'
-    context_object_name = 'comment'
+class CommentViewSet(viewsets.ModelViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    lookup_field = 'comment_id'  # specify the primary key
 
+    @action(detail=True, methods=['GET'])
+    def retrieve_comment(self, request, comment_id=None):
+        comment = get_object_or_404(Comment, comment_id=comment_id)
+        serializer = self.get_serializer(comment)
+        return Response(serializer.data)
 
-class CommentCreateView(CreateView):
-    model = Comment
-    form_class = CommentForm
-    template_name = 'comment_form.html'
-    success_url = 'comment_list'  # Redirect to the comment list view
+    @action(detail=False, methods=['POST'])
+    def create_comment(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.data, status=400)
 
+    @action(detail=True, methods=['PUT', 'PATCH'])
+    def update_comment(self, request, comment_id=None):
+        comment = get_object_or_404(Comment, comment_id=comment_id)
+        serializer = self.get_serializer(comment, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
 
-class CommentUpdateView(UpdateView):
-    model = Comment
-    form_class = CommentForm
-    template_name = 'comment_form.html'
-    success_url = 'comment_list'  # Redirect to the comment list view
-
-
-class CommentListView(ListView):
-    model = Comment
-    template_name = 'comment_list.html'
-    context_object_name = 'comments'  # Optional: You can customize the context variable name
-
-
-class CommentDeleteView(DeleteView):
-    model = Comment
-    template_name = 'comment_confirm_delete.html'
-    success_url = 'comment_list'
+    @action(detail=True, methods=['DELETE'])
+    def delete_comment(self, request, comment_id=None):
+        comment = get_object_or_404(Comment, comment_id=comment_id)
+        comment.delete()
+        return Response(status=204)
 
 
 # Like Operations
 
-class LikeDetailView(DetailView):
-    model = Like
-    template_name = 'like_detail.html'
-    context_object_name = 'like'
+class LikeViewSet(viewsets.ModelViewSet):
+    queryset = Like.objects.all()
+    serializer_class = LikeSerializer
+    lookup_field = 'like_id'  # specify the primary key
 
+    @action(detail=True, methods=['GET'])
+    def retrieve_like(self, request, like_id=None):
+        like = get_object_or_404(Like, like_id=like_id)
+        serializer = self.get_serializer(like)
+        return Response(serializer.data)
 
-class LikeCreateView(CreateView):
-    model = Like
-    form_class = LikeForm
-    template_name = 'like_form.html'
-    success_url = 'like_list'  # Redirect to the like list view
+    @action(detail=False, methods=['POST'])
+    def create_like(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.data, status=400)
 
+    @action(detail=True, methods=['PUT', 'PATCH'])
+    def update_like(self, request, like_id=None):
+        like = get_object_or_404(Like, like_id=like_id)
+        serializer = self.get_serializer(like, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
 
-class LikeUpdateView(UpdateView):
-    model = Like
-    form_class = LikeForm
-    template_name = 'like_form.html'
-    success_url = 'like_list'  # Redirect to the like list view
-
-
-class LikeListView(ListView):
-    model = Like
-    template_name = 'like_list.html'
-    context_object_name = 'likes'  # Optional: You can customize the context variable name
-
-
-class LikeDeleteView(DeleteView):
-    model = Like
-    template_name = 'like_confirm_delete.html'
-    success_url = 'like_list'
+    @action(detail=True, methods=['DELETE'])
+    def delete_like(self, request, like_id=None):
+        like = get_object_or_404(Like, like_id=like_id)
+        like.delete()
+        return Response(status=204)
