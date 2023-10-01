@@ -1,7 +1,5 @@
 from django.shortcuts import get_object_or_404
-from django.views.generic import CreateView, UpdateView, ListView, DeleteView, DetailView
 from .models import Artist, Genre, Song, Like, Comment
-from .forms import ArtistForm, GenreForm, SongForm, LikeForm, CommentForm
 from rest_framework import generics, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
